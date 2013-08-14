@@ -25,12 +25,15 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.PorterStemFilter;
-import org.apache.lucene.analysis.StopFilter;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.cn.smart.SentenceTokenizer;
 import org.apache.lucene.analysis.cn.smart.WordSegmenter;
-import org.apache.lucene.analysis.cn.smart.WordTokenizer;
+import org.apache.lucene.analysis.cn.smart.ChineseWordFilter;
+import org.apache.lucene.analysis.core.StopFilter;
+import org.apache.lucene.analysis.en.PorterStemFilter;
+import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.util.Version;
 
 /**
  * 
@@ -53,6 +56,7 @@ import org.apache.lucene.analysis.cn.smart.WordTokenizer;
 public class SmartChineseAnalyzer extends Analyzer {
 
   private Set<String> stopWords = null;
+  private CharArraySet stopSets = null;
 
   private WordSegmenter wordSegment;
 
@@ -70,6 +74,8 @@ public class SmartChineseAnalyzer extends Analyzer {
     if (useDefaultStopWords) {
       stopWords = loadStopWords(this.getClass().getResourceAsStream(
           "stopwords.txt"));
+      if(stopWords != null)
+    	  stopSets = new CharArraySet(Version.LUCENE_43, stopWords, true);
     }
     wordSegment = new WordSegmenter();
   }
@@ -82,21 +88,11 @@ public class SmartChineseAnalyzer extends Analyzer {
    */
   public SmartChineseAnalyzer(Set<String> stopWords) {
     this.stopWords = stopWords;
+    if(stopWords != null)
+  	  stopSets = new CharArraySet(Version.LUCENE_43, stopWords, true);
     wordSegment = new WordSegmenter();
   }
 
-  public TokenStream tokenStream(String fieldName, Reader reader) {
-    TokenStream result = new SentenceTokenizer(reader);
-    result = new WordTokenizer(result, wordSegment);
-    // result = new LowerCaseFilter(result);
-    // 不再需要LowerCaseFilter，因为SegTokenFilter已经将所有英文字符转换成小写
-    // stem太严格了, This is not bug, this feature:)
-    result = new PorterStemFilter(result);
-    if (stopWords != null) {
-      result = new StopFilter(result, stopWords, false);
-    }
-    return result;
-  }
 
   /**
    * 从停用词文件中加载停用词， 停用词文件是普通UTF-8编码的文本文件， 每一行是一个停用词，注释利用“//”， 停用词中包括中文标点符号， 中文空格，
@@ -125,5 +121,22 @@ public class SmartChineseAnalyzer extends Analyzer {
     }
     return stopWords;
   }
+
+@Override
+protected TokenStreamComponents createComponents(String field, Reader reader) {
+	TokenStream stream = null;
+	 Tokenizer tokenizer = new SentenceTokenizer(reader);
+	 stream = new ChineseWordFilter(tokenizer, wordSegment);
+	    // result = new LowerCaseFilter(result);
+	    // 不再需要LowerCaseFilter，因为SegTokenFilter已经将所有英文字符转换成小写
+	    // stem太严格了, This is not bug, this feature:)
+	 stream = new PorterStemFilter(stream);
+	    if (stopSets != null) {
+	    	StopFilter stopFilter = new StopFilter(Version.LUCENE_43, stream, stopSets);
+	    	stopFilter.setEnablePositionIncrements(false);
+	    	stream = stopFilter;
+	    }
+	return new TokenStreamComponents(tokenizer, stream);
+}
 
 }

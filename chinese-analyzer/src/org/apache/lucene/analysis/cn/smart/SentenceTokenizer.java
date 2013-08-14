@@ -20,8 +20,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 
-import org.apache.lucene.analysis.Token;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 
 /**
  * 
@@ -35,20 +36,34 @@ public class SentenceTokenizer extends Tokenizer {
    */
   public final static String PUNCTION = "。，！？；,!?;";
 
-  private StringBuffer buffer = new StringBuffer();
+  private StringBuilder buffer = new StringBuilder();
 
   private BufferedReader bufferInput;
 
   private int tokenStart = 0, tokenEnd = 0;
-
-  private Token t = new Token();
+  
+  private CharTermAttribute termAttr = addAttribute(CharTermAttribute.class);
+  private OffsetAttribute offsetAttr = addAttribute(OffsetAttribute.class);
 
   public SentenceTokenizer(Reader reader) {
-    bufferInput = new BufferedReader(reader, 2048);
+	super(reader);
+    
+  }
+  
+  @Override
+  public void reset() {
+	bufferInput = new BufferedReader(this.input, 2048);
+	tokenEnd = 0;
+	tokenStart = 0;
   }
 
-  public Token next() throws IOException {
-    buffer.setLength(0);
+  public void close() throws IOException {
+    bufferInput.close();
+  }
+
+@Override
+public boolean incrementToken() throws IOException {
+	buffer.setLength(0);
     int ci;
     char ch, pch;
     boolean atBegin = true;
@@ -87,16 +102,14 @@ public class SentenceTokenizer extends Tokenizer {
       }
     }
     if (buffer.length() == 0)
-      return null;
+      return false;
     else {
-      t.clear();
-      t.reinit(buffer.toString(), tokenStart, tokenEnd, "sentence");
-      return t;
+      clearAttributes();
+      termAttr.setEmpty().append(buffer);
+      termAttr.setLength(buffer.length());
+      offsetAttr.setOffset(correctOffset(tokenStart), correctOffset(tokenEnd));
+      return true;
     }
-  }
-
-  public void close() throws IOException {
-    bufferInput.close();
-  }
+}
 
 }

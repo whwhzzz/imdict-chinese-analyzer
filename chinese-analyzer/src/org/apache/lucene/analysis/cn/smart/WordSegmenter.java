@@ -16,7 +16,7 @@
 
 package org.apache.lucene.analysis.cn.smart;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.lucene.analysis.Token;
@@ -37,17 +37,11 @@ public class WordSegmenter {
    * @param shortPathCount HHMM算法分词所需要的优化前的最短路径个数。一般越大分词结果越精确，但是计算代价也较高。
    * @return 分词结果的Token List
    */
-  public List<Token> segmentSentence(Token sentenceToken, int shortPathCount) {
-    String sentence = sentenceToken.term();
-
+  public List<SegToken> segmentSentence(String sentence, int shortPathCount) {
+	List<SegToken> result = new LinkedList<SegToken>();
     List<SegToken> segTokenList = hhmmSegmenter.process(sentence);
-
-    List<Token> result = new ArrayList<Token>();
-
-    // i从1到rawTokens.length-2，也就是说将“始##始”，“末##末”两个RawToken去掉
-    for (int i = 1; i < segTokenList.size() - 1; i++) {
-      result.add(convertSegToken(segTokenList.get(i), sentence, sentenceToken
-          .startOffset(), "word"));
+    for(int i = 1; i < segTokenList.size() - 1 ; i ++) {
+    	result.add(segTokenList.get(i));
     }
     return result;
 
