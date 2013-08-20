@@ -132,7 +132,8 @@ protected TokenStreamComponents createComponents(String field, Reader reader) {
 	    // stem太严格了, This is not bug, this feature:)
 	 stream = new PorterStemFilter(stream);
 	    if (stopSets != null) {
-	    	StopFilter stopFilter = new StopFilter(Version.LUCENE_43, stream, stopSets);
+	    	@SuppressWarnings("resource")
+			StopFilter stopFilter = new StopFilter(Version.LUCENE_43, stream, stopSets);
 	    	stopFilter.setEnablePositionIncrements(false);
 	    	stream = stopFilter;
 	    }
